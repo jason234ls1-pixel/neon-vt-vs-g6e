@@ -63,7 +63,7 @@ function frame(now){let dt=Math.min((now-(last||now))/1000,.04);last=now;if(acti
 let s=specs[you],r=specs[them];if(throttle){let gearFactor=[0,.92,.78,.66,.56,.48,.42][gear];let boost=you==='fg'?(rpm>2600?1.16:0.94):1;let accel=(s.power*gearFactor*boost*11.5)-(v*.022);v=Math.min(s.top,v+accel*dt*3.6);rpm=Math.min(6800,rpm+dt*(2100+v*5));}
 else{v=Math.max(mode==='roll'?40:0,v-5*dt);rpm=Math.max(1000,rpm-900*dt)}
 let rivalAccel=r.power*(gear<3?.92:.75)*(them==='fg'&&rv>75?1.13:1)*9.5-rv*.018;rv=Math.min(r.top,rv+rivalAccel*dt*3.6);if(mode==='drag'&&t<.5)rv=Math.max(0,rv-18*dt);
-dist+=(v/3.6)*dt;let rivalDist+=(rv/3.6)*dt;
+dist+=(v/3.6)*dt;rivalDist+=(rv/3.6)*dt;
 if(dist>=finishDist){finished=true;active=false;let won=dist>=finishDist&&rivalDist<finishDist;$('#result').innerHTML=`<strong>${won?'YOU WIN':'RIVAL WINS'}</strong><br>Your ET: ${t.toFixed(2)} sec · Trap speed: ${Math.round(v)} km/h<br>Opponent distance: ${Math.round(rivalDist)} m<br>${mode==='drag'?'Quarter-mile':'Roll race'} result. Hit STAGE / START to run it again.`}
 updateHud()}draw();requestAnimationFrame(frame)}
 let rivalDist=0;const oldReset=reset;reset=function(){rivalDist=0;oldReset()};
