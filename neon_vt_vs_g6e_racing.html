@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VT SS vs G6E Turbo — Neon Street Racing</title>
+<style>
+:root{--cyan:#67f7ff;--pink:#ff4bd8;--gold:#ffd36a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#17203d,#060812 65%);color:#eefaff;font-family:system-ui,Arial,sans-serif;min-height:100vh;display:grid;place-items:center;padding:16px}
+main{width:min(96vw,760px)}header{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+h1{font-size:clamp(20px,4vw,32px);letter-spacing:2px;color:var(--cyan);text-shadow:0 0 16px #00d9ff;margin:0}.tag{color:#a8bfd1;font-size:12px;letter-spacing:2px}
+.panel{background:#0c1326;border:1px solid #25415c;border-radius:14px;padding:14px;margin:10px 0;box-shadow:0 10px 30px #0005}
+.selectors{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+label{display:block;color:#a9bfd0;font-size:12px;margin-bottom:6px;text-align:left}
+select,button{width:100%;border-radius:10px;padding:11px;background:#121e37;color:#eafaff;border:1px solid #2b6680;font-weight:800;font-size:14px}
+button{cursor:pointer}button.primary{background:linear-gradient(100deg,#4b164c,#103d58);border-color:var(--pink);color:white}
+button:active{transform:translateY(1px)}
+canvas{display:block;width:100%;height:auto;border:1px solid #25617b;border-radius:14px;background:#080d19;box-shadow:0 0 28px #00d9ff22}
+.hud{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.metric{background:#0c1326;border:1px solid #203c55;border-radius:10px;padding:9px;text-align:center}.metric small{display:block;color:#8ba9bd;font-size:10px;letter-spacing:1px}.metric b{font-size:19px;color:var(--cyan);font-variant-numeric:tabular-nums}
+.controls{display:flex;gap:10px;margin-top:10px}.controls button{flex:1;touch-action:none}
+.note{font-size:12px;color:#92a9ba;line-height:1.5;text-align:center;margin:10px}
+.result{font-size:14px;line-height:1.7;color:#d9e9f4}.result strong{color:var(--gold)}
+@media(max-width:560px){.selectors{grid-template-columns:1fr}.hud{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body><main>
+<header><div><div class="tag">AUSSIE STREET MACHINERY</div><h1>NEON RACE NIGHT</h1></div><div class="tag">VT SS × FG G6E TURBO</div></header>
+<section class="panel selectors">
+ <div><label for="mode">RACE FORMAT</label><select id="mode"><option value="drag">¼ MILE DRAG</option><option value="roll">40 KM/H ROLL RACE</option></select></div>
+ <div><label for="car">YOUR CAR</label><select id="car"><option value="vt">Holden VT SS · V8</option><option value="fg">Ford FG G6E Turbo · Barra</option></select></div>
+ <div><label for="rival">OPPONENT</label><select id="rival"><option value="fg">Ford FG G6E Turbo · Barra</option><option value="vt">Holden VT SS · V8</option></select></div>
+</section>
+<canvas id="track" width="720" height="390"></canvas>
+<div class="hud">
+ <div class="metric"><small>SPEED</small><b id="speed">0 km/h</b></div>
+ <div class="metric"><small>YOUR ET</small><b id="elapsed">0.00 s</b></div>
+ <div class="metric"><small>YOUR DISTANCE</small><b id="distance">0 m</b></div>
+ <div class="metric"><small>GEAR</small><b id="gear">N</b></div>
+</div>
+<div class="controls"><button id="launch" class="primary">HOLD TO THROTTLE</button><button id="shift">SHIFT UP</button><button id="start" class="primary">STAGE / START</button></div>
+<div class="panel result" id="result">Choose your car and race format, then stage up. Drag racing starts from a standstill. Roll racing starts at 40 km/h. Hold throttle and shift through the gears.</div>
+<div class="note">Keyboard: hold SPACE or ↑ for throttle · SHIFT or E to change gear. Mobile: hold THROTTLE and tap SHIFT UP. This is an arcade-style fictional matchup, not a real-world performance prediction.</div>
+</main>
+<script>
+const $=s=>document.querySelector(s),cv=$('#track'),ctx=cv.getContext('2d');
+let active=false,finished=false,mode='drag',you='vt',them='fg',t=0,dist=0,v=0,rv=0,gear=1,rpm=1000,throttle=false,shiftLock=0,last=0,finishDist=402.336;
+const specs={vt:{name:'VT SS V8',power:1.00,launch:1.12,grip:1.05,color:'#00e5ff',top:285},fg:{name:'FG G6E TURBO',power:1.08,launch:.92,grip:.98,color:'#ff4bd8',top:300}};
+function reset(){mode=$('#mode').value;you=$('#car').value;them=$('#rival').value;if(you===them){them=you==='vt'?'fg':'vt';$('#rival').value=them}
+t=0;dist=0;v=mode==='roll'?40:0;rv=mode==='roll'?40:0;gear=mode==='roll'?2:1;rpm=mode==='roll'?3100:1000;active=true;finished=false;shiftLock=0;last=0;$('#result').textContent=mode==='drag'?'Staged. Get ready…':'Rolling together at 40 km/h. Get on the boost…';draw();updateHud()}
+function shift(){if(!active||finished||shiftLock>0)return;gear=Math.min(6,gear+1);rpm=Math.max(2600,rpm-1150);shiftLock=.22}
+function updateHud(){$('#speed').textContent=Math.round(v)+' km/h';$('#elapsed').textContent=t.toFixed(2)+' s';$('#distance').textContent=Math.round(dist)+' m';$('#gear').textContent=active?gear:'N'}
+function carShape(x,y,color,label,scale=1){ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.shadowColor=color;ctx.shadowBlur=18;ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(-33,-13,66,26,7);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#10182a';ctx.beginPath();ctx.roundRect(-18,-10,34,20,5);ctx.fill();ctx.fillStyle='#dffaff';ctx.fillRect(-27,-10,5,5);ctx.fillRect(22,-10,5,5);ctx.fillStyle='#ffdf8c';ctx.fillRect(-29,7,6,3);ctx.fillRect(23,7,6,3);ctx.fillStyle='#fff';ctx.font='bold 9px system-ui';ctx.textAlign='center';ctx.fillText(label,0,3);ctx.restore()}
+function draw(){ctx.clearRect(0,0,720,390);let g=ctx.createLinearGradient(0,0,0,390);g.addColorStop(0,'#10152a');g.addColorStop(1,'#080c18');ctx.fillStyle=g;ctx.fillRect(0,0,720,390);
+ctx.fillStyle='#141d31';ctx.fillRect(0,60,720,270);ctx.strokeStyle='#ff4bd8';ctx.lineWidth=3;ctx.shadowColor='#ff4bd8';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(0,60);ctx.lineTo(720,60);ctx.moveTo(0,330);ctx.lineTo(720,330);ctx.stroke();ctx.shadowBlur=0;
+ctx.strokeStyle='#9bb3c7';ctx.lineWidth=2;ctx.setLineDash([28,22]);ctx.lineDashOffset=-(t*35)%50;ctx.beginPath();ctx.moveTo(0,195);ctx.lineTo(720,195);ctx.stroke();ctx.setLineDash([]);
+ctx.fillStyle='#91a8bb';ctx.font='12px system-ui';ctx.fillText(mode==='drag'?'QUARTER MILE · 402.3 M':'40 KM/H ROLL RACE',18,28);
+let pct=Math.min(1,dist/finishDist);ctx.fillStyle='#27374d';ctx.fillRect(18,350,684,8);ctx.fillStyle='#00e5ff';ctx.fillRect(18,350,684*pct,8);
+carShape(230,135,specs[you].color,you==='vt'?'VT SS':'G6E',1.05);carShape(230+(Math.max(-1,Math.min(1,(dist-(mode==='drag'?0:0))*0.002+(v-rv)*1.2)))*75,255,specs[them].color,them==='vt'?'VT SS':'G6E',1.05);
+ctx.fillStyle='#d7e8f3';ctx.font='bold 12px system-ui';ctx.fillText('YOU',190,105);ctx.fillText('RIVAL',190,225);
+if(!active){ctx.fillStyle='#020612bb';ctx.fillRect(0,0,720,390);ctx.textAlign='center';ctx.fillStyle='#72f8ff';ctx.font='bold 28px system-ui';ctx.fillText(finished?'RACE COMPLETE':'READY TO RACE',360,180);ctx.textAlign='left'}
+}
+function frame(now){let dt=Math.min((now-(last||now))/1000,.04);last=now;if(active&&!finished){t+=dt;if(shiftLock>0)shiftLock-=dt;
+let s=specs[you],r=specs[them];if(throttle){let gearFactor=[0,.92,.78,.66,.56,.48,.42][gear];let boost=you==='fg'?(rpm>2600?1.16:0.94):1;let accel=(s.power*gearFactor*boost*11.5)-(v*.022);v=Math.min(s.top,v+accel*dt*3.6);rpm=Math.min(6800,rpm+dt*(2100+v*5));}
+else{v=Math.max(mode==='roll'?40:0,v-5*dt);rpm=Math.max(1000,rpm-900*dt)}
+let rivalAccel=r.power*(gear<3?.92:.75)*(them==='fg'&&rv>75?1.13:1)*9.5-rv*.018;rv=Math.min(r.top,rv+rivalAccel*dt*3.6);if(mode==='drag'&&t<.5)rv=Math.max(0,rv-18*dt);
+dist+=(v/3.6)*dt;let rivalDist+=(rv/3.6)*dt;
+if(dist>=finishDist){finished=true;active=false;let won=dist>=finishDist&&rivalDist<finishDist;$('#result').innerHTML=`<strong>${won?'YOU WIN':'RIVAL WINS'}</strong><br>Your ET: ${t.toFixed(2)} sec · Trap speed: ${Math.round(v)} km/h<br>Opponent distance: ${Math.round(rivalDist)} m<br>${mode==='drag'?'Quarter-mile':'Roll race'} result. Hit STAGE / START to run it again.`}
+updateHud()}draw();requestAnimationFrame(frame)}
+let rivalDist=0;const oldReset=reset;reset=function(){rivalDist=0;oldReset()};
+$('#start').addEventListener('click',reset);$('#shift').addEventListener('click',shift);
+const launch=$('#launch');launch.addEventListener('pointerdown',e=>{e.preventDefault();throttle=true});['pointerup','pointerleave','pointercancel'].forEach(e=>launch.addEventListener(e,()=>throttle=false));
+document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){throttle=true;e.preventDefault()}if((e.code==='ShiftLeft'||e.code==='KeyE')&&!e.repeat)shift()});
+document.addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='ArrowUp')throttle=false});
+draw();requestAnimationFrame(frame);
+</script></body></html>
